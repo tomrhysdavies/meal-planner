@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two-Week Interactive Meal Planner</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f5f7;
+            color: #172b4d;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Drag & Drop Visual Styles */
+        .card-ghost {
+            opacity: 0.4;
+            transform: scale(0.98);
+        }
+        .drag-over {
+            background-color: #e9f2ff !important;
+            border-color: #388bfd !important;
+        }
+
+        .trello-column {
+            min-width: 220px;
+            max-width: 280px;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden bg-slate-100 text-slate-800">
+
+    <header class="bg-white border-b border-slate-200 px-6 py-3.5 flex flex-wrap items-center justify-between shadow-sm z-10 shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="bg-indigo-600 text-white p-2 rounded-xl shadow-md shadow-indigo-200">
+                <i data-lucide="utensils" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                    Two-Week Meal Planner
+                    <span class="text-xs bg-indigo-100 text-indigo-700 font-medium px-2.5 py-0.5 rounded-full">For Couples</span>
+                </h1>
+                <p class="text-xs text-slate-500">Plan, swap, drag, and organize your dinners effortlessly</p>
+            </div>
+        </div>
+
+        <!-- Quick Stats & Actions -->
+        <div class="flex items-center gap-3 mt-2 sm:mt-0">
+            <div id="statsContainer" class="hidden md:flex items-center gap-3 bg-slate-50 border border-slate-200 px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-600">
+                <div>Total Meals Planned: <span id="plannedCount" class="font-bold text-indigo-600">0</span>/14</div>
+                <div class="h-3 w-px bg-slate-300"></div>
+                <div>Unscheduled Ideas: <span id="poolCount" class="font-bold text-slate-700">0</span></div>
+            </div>
+
+            <button id="addCardBtn" class="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-medium px-3.5 py-2 rounded-lg transition-all shadow-sm shadow-indigo-200">
+                <i data-lucide="plus" class="w-4 h-4"></i> Add Meal Idea
+            </button>
+            <button id="resetBoardBtn" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium px-3 py-2 rounded-lg transition-colors border border-slate-200" title="Reset to Defaults">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden p-4 gap-4">
+        
+        <!-- Sidebar / Meal Pool -->
+        <aside class="w-72 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col shrink-0 overflow-hidden">
+            <div class="p-3.5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+                <div class="flex items-center gap-2 font-semibold text-slate-700 text-sm">
+                    <i data-lucide="lightbulb" class="w-4 h-4 text-amber-500"></i>
+                    <span>Meal Ideas & Sandbox</span>
+                </div>
+                <span id="poolBadge" class="bg-slate-200 text-slate-700 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+            </div>
+            <p class="text-xs text-slate-500 px-3.5 pt-2">Drag meals from here to any day, or keep extra recipes handy!</p>
+
+            <!-- Unscheduled Drop Area -->
+            <div id="pool" data-day="pool" class="drag-zone flex-1 p-3 overflow-y-auto space-y-3 min-h-[150px] transition-colors rounded-b-xl">
+                <!-- Meal Cards injected via JS -->
+            </div>
+        </aside>
+
+        <!-- Two Week Board Area -->
+        <section class="flex-1 flex flex-col overflow-hidden bg-slate-200/60 rounded-xl border border-slate-300/70 p-3">
+            
+            <!-- Week Switcher & View Mode -->
+            <div class="flex items-center justify-between mb-3 px-1">
+                <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-slate-200 shadow-sm text-sm font-medium">
+                    <button id="viewAllBtn" class="px-3 py-1 rounded-md bg-indigo-600 text-white shadow-xs font-semibold transition-all">All 14 Days</button>
+                    <button id="viewWeek1Btn" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all">Week 1</button>
+                    <button id="viewWeek2Btn" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all">Week 2</button>
+                </div>
+                
+                <div class="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+                    <i data-lucide="info" class="w-3.5 h-3.5 text-indigo-500"></i>
+                    Tip: Drag cards between days to rearrange your schedule
+                </div>
+            </div>
+
+            <!-- Scrollable 14-Day Columns Container -->
+            <div class="flex-1 overflow-x-auto overflow-y-hidden">
+                <div id="daysBoard" class="h-full flex gap-3 pb-2">
+                    <!-- Day Columns 1-14 injected dynamically -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="cardModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all">
+            <div class="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <h3 id="modalTitle" class="text-lg font-bold text-slate-800">Edit Meal</h3>
+                <button id="closeModalBtn" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="cardForm" class="p-6 space-y-4">
+                <input type="hidden" id="modalCardId">
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Meal Title</label>
+                    <input type="text" id="modalMealTitle" required placeholder="e.g. Creamy Tuscan Chicken" 
+                           class="w-full px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm text-slate-800 outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Meal Type</label>
+                        <select id="modalMealType" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm text-slate-800 outline-none">
+                            <option value="Dinner">Dinner 🍽️</option>
+                            <option value="Lunch">Lunch 🥗</option>
+                            <option value="Breakfast">Breakfast 🥞</option>
+                            <option value="Snack/Treat">Snack / Treat 🍕</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Prep/Cook Time</label>
+                        <input type="text" id="modalPrepTime" placeholder="e.g. 30 mins" 
+                               class="w-full px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm text-slate-800 outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Tags / Labels</label>
+                    <div class="flex flex-wrap gap-2 mb-2" id="tagsSelector">
+                        <!-- Tag checkboxes injected JS -->
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Notes / Ingredients / Recipe Link</label>
+                    <textarea id="modalNotes" rows="3" placeholder="Add recipe links, key ingredients needed, or instructions..." 
+                              class="w-full px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm text-slate-800 outline-none resize-none"></textarea>
+                </div>
+
+                <div class="pt-2 flex justify-between items-center border-t border-slate-100">
+                    <button type="button" id="deleteCardBtn" class="text-red-600 hover:text-red-700 text-sm font-medium flex items-center gap-1 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i> Delete
+                    </button>
+
+                    <div class="flex gap-2">
+                        <button type="button" id="cancelModalBtn" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-sm transition-all">Save Meal</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Default Preset Tags with colors
+        const AVAILABLE_TAGS = [
+            { name: "Quick & Easy", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+            { name: "Vegetarian", color: "bg-green-100 text-green-800 border-green-300" },
+            { name: "Couple's Favorite", color: "bg-rose-100 text-rose-800 border-rose-300" },
+            { name: "Takeout", color: "bg-amber-100 text-amber-800 border-amber-300" },
+            { name: "Healthy", color: "bg-cyan-100 text-cyan-800 border-cyan-300" },
+            { name: "Batch Cook", color: "bg-purple-100 text-purple-800 border-purple-300" }
+        ];
+
+        // Sample initial meals for first load
+        const INITIAL_MEALS = [
+            { id: "m1", title: "Creamy Garlic Parmesan Pasta", type: "Dinner", prepTime: "25 mins", tags: ["Quick & Easy", "Vegetarian"], notes: "Serve with warm garlic bread and green salad.", day: "day-1" },
+            { id: "m2", title: "Crispy Chicken Stir-Fry", type: "Dinner", prepTime: "30 mins", tags: ["Healthy"], notes: "Use snap peas, bell peppers, and soy ginger glaze.", day: "day-2" },
+            { id: "m3", title: "Homemade Pizza Night", type: "Dinner", prepTime: "40 mins", tags: ["Couple's Favorite"], notes: "Make dough early in afternoon!", day: "day-5" },
+            { id: "m4", title: "Slow Cooker Beef Chili", type: "Dinner", prepTime: "15 mins prep", tags: ["Batch Cook"], notes: "Makes plenty for leftovers the next day.", day: "day-7" },
+            { id: "m5", title: "Thai Green Curry", type: "Dinner", prepTime: "35 mins", tags: ["Couple's Favorite"], notes: "Buy fresh coconut milk and lime.", day: "pool" },
+            { id: "m6", title: "Grilled Salmon & Asparagus", type: "Dinner", prepTime: "20 mins", tags: ["Healthy", "Quick & Easy"], notes: "Lemon juice and herbs marinade.", day: "pool" },
+            { id: "m7", title: "Taco Tuesday Blast", type: "Dinner", prepTime: "25 mins", tags: ["Quick & Easy"], notes: "Guacamole, salsa, and soft tortillas.", day: "day-9" },
+            { id: "m8", title: "Friday Night Sushi Takeout", type: "Dinner", prepTime: "0 mins", tags: ["Takeout"], notes: "Treat night after a long week!", day: "day-12" }
+        ];
+
+        const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+        // Application State
+        let meals = [];
+        let draggedCardId = null;
+
+        // DOM Element References
+        const daysBoard = document.getElementById("daysBoard");
+        const pool = document.getElementById("pool");
+        const cardModal = document.getElementById("cardModal");
+        const cardForm = document.getElementById("cardForm");
+        const tagsSelector = document.getElementById("tagsSelector");
+
+        function initApp() {
+            loadMeals();
+            renderBoard();
+            renderPool();
+            setupEventListeners();
+            updateStats();
+            lucide.createIcons();
+        }
+
+        function loadMeals() {
+            const saved = localStorage.getItem("couple_meal_planner_data");
+            if (saved) {
+                try {
+                    meals = JSON.parse(saved);
+                } catch (e) {
+                    meals = [...INITIAL_MEALS];
+                }
+            } else {
+                meals = [...INITIAL_MEALS];
+            }
+        }
+
+        function saveMeals() {
+            localStorage.setItem("couple_meal_planner_data", JSON.stringify(meals));
+            updateStats();
+        }
+
+        function renderBoard() {
+            daysBoard.innerHTML = "";
+
+            for (let i = 1; i <= 14; i++) {
+                const weekNum = i <= 7 ? 1 : 2;
+                const dayName = DAYS_OF_WEEK[(i - 1) % 7];
+                const dayId = `day-${i}`;
+
+                const column = document.createElement("div");
+                column.className = `trello-column flex-1 flex flex-col bg-white rounded-xl border border-slate-200/80 shadow-xs day-column week-${weekNum}`;
+                column.dataset.week = weekNum;
+
+                column.innerHTML = `
+                    <div class="p-3 border-b border-slate-100 bg-slate-50/60 rounded-t-xl flex items-center justify-between">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 block">Day ${i} • ${dayName}</span>
+                            <span class="text-[11px] text-slate-400 font-medium">Week ${weekNum}</span>
+                        </div>
+                        <button onclick="openModalForNew('${dayId}')" class="text-slate-400 hover:text-indigo-600 p-1 rounded-md transition-colors" title="Add meal to Day ${i}">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <div id="${dayId}" data-day="${dayId}" class="drag-zone flex-1 p-2.5 overflow-y-auto space-y-2.5 min-h-[160px] transition-colors rounded-b-xl">
+                        <!-- Meals in day -->
+                    </div>
+                `;
+
+                daysBoard.appendChild(column);
+
+                // Render meals assigned to this day
+                const dayContainer = column.querySelector(`#${dayId}`);
+                const dayMeals = meals.filter(m => m.day === dayId);
+                
+                dayMeals.forEach(meal => {
+                    dayContainer.appendChild(createMealCardElement(meal));
+                });
+
+                setupDragZoneEvents(dayContainer);
+            }
+        }
+
+        function renderPool() {
+            pool.innerHTML = "";
+            const poolMeals = meals.filter(m => m.day === "pool");
+            
+            poolMeals.forEach(meal => {
+                pool.appendChild(createMealCardElement(meal));
+            });
+
+            setupDragZoneEvents(pool);
+            document.getElementById("poolBadge").innerText = poolMeals.length;
+            document.getElementById("poolCount").innerText = poolMeals.length;
+        }
+
+        function createMealCardElement(meal) {
+            const card = document.createElement("div");
+            card.id = `card-${meal.id}`;
+            card.className = "bg-white border border-slate-200 hover:border-indigo-300 rounded-xl p-3 shadow-xs hover:shadow-md transition-all cursor-grab active:cursor-grabbing group relative select-none";
+            card.draggable = true;
+
+            // Render Tags HTML
+            const tagsHtml = (meal.tags || []).map(tagName => {
+                const tagObj = AVAILABLE_TAGS.find(t => t.name === tagName) || { name: tagName, color: "bg-slate-100 text-slate-700" };
+                return `<span class="text-[10px] font-semibold px-2 py-0.5 rounded-md border ${tagObj.color}">${tagObj.name}</span>`;
+            }).join("");
+
+            card.innerHTML = `
+                <div class="flex items-start justify-between gap-2 mb-1.5">
+                    <h4 class="font-semibold text-slate-800 text-sm leading-snug hover:text-indigo-600 transition-colors cursor-pointer" onclick="openModalForEdit('${meal.id}')">${escapeHtml(meal.title)}</h4>
+                    
+                    <!-- Quick Actions Menu -->
+                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="duplicateMeal('${meal.id}')" title="Duplicate Meal" class="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button onclick="openModalForEdit('${meal.id}')" title="Edit Meal" class="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded">
+                            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                ${meal.tags && meal.tags.length > 0 ? `<div class="flex flex-wrap gap-1 my-2">${tagsHtml}</div>` : ''}
+
+                ${meal.notes ? `<p class="text-xs text-slate-500 line-clamp-2 mb-2 italic bg-slate-50 p-1.5 rounded-md">${escapeHtml(meal.notes)}</p>` : ''}
+
+                <div class="flex items-center justify-between text-[11px] text-slate-400 mt-2 pt-1 border-t border-slate-100">
+                    <span class="flex items-center gap-1 font-medium text-slate-500">
+                        <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i> ${meal.prepTime || 'N/A'}
+                    </span>
+                    <span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-medium text-[10px]">
+                        ${meal.type || 'Dinner'}
+                    </span>
+                </div>
+            `;
+
+            card.addEventListener("dragstart", (e) => {
+                draggedCardId = meal.id;
+                card.classList.add("card-ghost");
+                e.dataTransfer.setData("text/plain", meal.id);
+                e.dataTransfer.effectAllowed = "move";
+            });
+
+            card.addEventListener("dragend", () => {
+                card.classList.remove("card-ghost");
+                draggedCardId = null;
+                document.querySelectorAll(".drag-zone").forEach(zone => zone.classList.remove("drag-over"));
+            });
+
+            return card;
+        }
+
+        function setupDragZoneEvents(zone) {
+            zone.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                zone.classList.add("drag-over");
+            });
+
+            zone.addEventListener("dragleave", (e) => {
+                if (e.target === zone) {
+                    zone.classList.remove("drag-over");
+                }
+            });
+
+            zone.addEventListener("drop", (e) => {
+                e.preventDefault();
+                zone.classList.remove("drag-over");
+                
+                const cardId = e.dataTransfer.getData("text/plain") || draggedCardId;
+                const targetDay = zone.dataset.day;
+
+                if (cardId && targetDay) {
+                    const meal = meals.find(m => m.id === cardId);
+                    if (meal && meal.day !== targetDay) {
+                        meal.day = targetDay;
+                        saveMeals();
+                        renderBoard();
+                        renderPool();
+                        lucide.createIcons();
+                    }
+                }
+            });
+        }
+
+        function duplicateMeal(id) {
+            const original = meals.find(m => m.id === id);
+            if (!original) return;
+
+            const copy = {
+                ...original,
+                id: "m_" + Date.now() + Math.random().toString(36).substr(2, 4),
+                title: `${original.title} (Copy)`
+            };
+
+            meals.push(copy);
+            saveMeals();
+            renderBoard();
+            renderPool();
+            lucide.createIcons();
+        }
+
+        function renderTagSelector(selectedTags = []) {
+            tagsSelector.innerHTML = AVAILABLE_TAGS.map(t => {
+                const isChecked = selectedTags.includes(t.name);
+                return `
+                    <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs cursor-pointer select-none transition-all ${t.color} ${isChecked ? 'ring-2 ring-indigo-500 font-bold' : 'opacity-70'}">
+                        <input type="checkbox" name="tags" value="${t.name}" ${isChecked ? 'checked' : ''} class="hidden" onchange="toggleTagStyle(this)">
+                        <span>${t.name}</span>
+                    </label>
+                `;
+            }).join("");
+        }
+
+        function toggleTagStyle(checkbox) {
+            const label = checkbox.parentElement;
+            if (checkbox.checked) {
+                label.classList.add("ring-2", "ring-indigo-500", "font-bold");
+                label.classList.remove("opacity-70");
+            } else {
+                label.classList.remove("ring-2", "ring-indigo-500", "font-bold");
+                label.classList.add("opacity-70");
+            }
+        }
+
+        function openModalForNew(defaultDay = "pool") {
+            document.getElementById("modalTitle").innerText = "Add New Meal";
+            document.getElementById("modalCardId").value = "";
+            document.getElementById("modalMealTitle").value = "";
+            document.getElementById("modalMealType").value = "Dinner";
+            document.getElementById("modalPrepTime").value = "30 mins";
+            document.getElementById("modalNotes").value = "";
+            document.getElementById("deleteCardBtn").classList.add("hidden");
+            
+            cardForm.dataset.targetDay = defaultDay;
+            renderTagSelector([]);
+            cardModal.classList.remove("hidden");
+        }
+
+        function openModalForEdit(id) {
+            const meal = meals.find(m => m.id === id);
+            if (!meal) return;
+
+            document.getElementById("modalTitle").innerText = "Edit Meal Details";
+            document.getElementById("modalCardId").value = meal.id;
+            document.getElementById("modalMealTitle").value = meal.title;
+            document.getElementById("modalMealType").value = meal.type || "Dinner";
+            document.getElementById("modalPrepTime").value = meal.prepTime || "";
+            document.getElementById("modalNotes").value = meal.notes || "";
+            document.getElementById("deleteCardBtn").classList.remove("hidden");
+
+            renderTagSelector(meal.tags || []);
+            cardModal.classList.remove("hidden");
+        }
+
+        function closeModal() {
+            cardModal.classList.add("hidden");
+        }
+
+        function setupEventListeners() {
+            document.getElementById("addCardBtn").addEventListener("click", () => openModalForNew("pool"));
+            document.getElementById("closeModalBtn").addEventListener("click", closeModal);
+            document.getElementById("cancelModalBtn").addEventListener("click", closeModal);
+
+            // Save Form Submission
+            cardForm.addEventListener("submit", (e) => {
+                e.preventDefault();
+
+                const id = document.getElementById("modalCardId").value;
+                const title = document.getElementById("modalMealTitle").value.trim();
+                const type = document.getElementById("modalMealType").value;
+                const prepTime = document.getElementById("modalPrepTime").value.trim();
+                const notes = document.getElementById("modalNotes").value.trim();
+
+                const selectedTags = Array.from(document.querySelectorAll('input[name="tags"]:checked'))
+                                         .map(cb => cb.value);
+
+                if (id) {
+                    // Update existing
+                    const meal = meals.find(m => m.id === id);
+                    if (meal) {
+                        meal.title = title;
+                        meal.type = type;
+                        meal.prepTime = prepTime;
+                        meal.notes = notes;
+                        meal.tags = selectedTags;
+                    }
+                } else {
+                    // Create new
+                    const newMeal = {
+                        id: "m_" + Date.now(),
+                        title,
+                        type,
+                        prepTime,
+                        notes,
+                        tags: selectedTags,
+                        day: cardForm.dataset.targetDay || "pool"
+                    };
+                    meals.push(newMeal);
+                }
+
+                saveMeals();
+                renderBoard();
+                renderPool();
+                lucide.createIcons();
+                closeModal();
+            });
+
+            // Delete Card
+            document.getElementById("deleteCardBtn").addEventListener("click", () => {
+                const id = document.getElementById("modalCardId").value;
+                if (id) {
+                    meals = meals.filter(m => m.id !== id);
+                    saveMeals();
+                    renderBoard();
+                    renderPool();
+                    lucide.createIcons();
+                    closeModal();
+                }
+            });
+
+            // Reset Board Option
+            document.getElementById("resetBoardBtn").addEventListener("click", () => {
+                if (confirm("Reset meal planner back to default sample meals?")) {
+                    meals = [...INITIAL_MEALS];
+                    saveMeals();
+                    renderBoard();
+                    renderPool();
+                    lucide.createIcons();
+                }
+            });
+
+            // View Filtering (All 14 Days vs Week 1 vs Week 2)
+            const viewAllBtn = document.getElementById("viewAllBtn");
+            const viewWeek1Btn = document.getElementById("viewWeek1Btn");
+            const viewWeek2Btn = document.getElementById("viewWeek2Btn");
+
+            const updateActiveViewBtn = (activeBtn) => {
+                [viewAllBtn, viewWeek1Btn, viewWeek2Btn].forEach(btn => {
+                    btn.className = "px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all font-medium";
+                });
+                activeBtn.className = "px-3 py-1 rounded-md bg-indigo-600 text-white shadow-xs font-semibold transition-all";
+            };
+
+            viewAllBtn.addEventListener("click", () => {
+                document.querySelectorAll(".day-column").forEach(el => el.classList.remove("hidden"));
+                updateActiveViewBtn(viewAllBtn);
+            });
+
+            viewWeek1Btn.addEventListener("click", () => {
+                document.querySelectorAll(".day-column").forEach(el => {
+                    if (el.dataset.week === "1") el.classList.remove("hidden");
+                    else el.classList.add("hidden");
+                });
+                updateActiveViewBtn(viewWeek1Btn);
+            });
+
+            viewWeek2Btn.addEventListener("click", () => {
+                document.querySelectorAll(".day-column").forEach(el => {
+                    if (el.dataset.week === "2") el.classList.remove("hidden");
+                    else el.classList.add("hidden");
+                });
+                updateActiveViewBtn(viewWeek2Btn);
+            });
+        }
+
+        function updateStats() {
+            const planned = meals.filter(m => m.day !== "pool").length;
+            document.getElementById("plannedCount").innerText = planned;
+        }
+
+        function escapeHtml(str) {
+            return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : '';
+        }
+
+        // Initialize App on DOM ready
+        window.addEventListener("DOMContentLoaded", initApp);
+    </script>
+</body>
+</html>
