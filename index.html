@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Two-Week Interactive Meal Planner</title>
+    <title>Two-Week Collaborative Meal Planner</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -45,40 +45,40 @@
         }
 
         .trello-column {
-            min-width: 220px;
+            min-width: 230px;
             max-width: 280px;
         }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden bg-slate-100 text-slate-800">
 
-    <header class="bg-white border-b border-slate-200 px-6 py-3.5 flex flex-wrap items-center justify-between shadow-sm z-10 shrink-0">
+    <header class="bg-white border-b border-slate-200 px-6 py-3.5 flex flex-wrap items-center justify-between shadow-xs z-10 shrink-0">
         <div class="flex items-center gap-3">
-            <div class="bg-indigo-600 text-white p-2 rounded-xl shadow-md shadow-indigo-200">
+            <div class="bg-rose-500 text-white p-2 rounded-xl shadow-md shadow-rose-200">
                 <i data-lucide="utensils" class="w-6 h-6"></i>
             </div>
             <div>
                 <h1 class="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                    Two-Week Meal Planner
-                    <span class="text-xs bg-indigo-100 text-indigo-700 font-medium px-2.5 py-0.5 rounded-full">For Couples</span>
+                    Our Meal Planner
+                    <span class="text-xs bg-rose-100 text-rose-700 font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                        <i data-lucide="heart" class="w-3 h-3 fill-rose-500 text-rose-500"></i> Live Sync
+                    </span>
                 </h1>
-                <p class="text-xs text-slate-500">Plan, swap, drag, and organize your dinners effortlessly</p>
+                <p class="text-xs text-slate-500">Plan dinners together with real-time updates across devices</p>
             </div>
         </div>
 
-        <!-- Quick Stats & Actions -->
+        <!-- Connection Status & Header Controls -->
         <div class="flex items-center gap-3 mt-2 sm:mt-0">
-            <div id="statsContainer" class="hidden md:flex items-center gap-3 bg-slate-50 border border-slate-200 px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-600">
-                <div>Total Meals Planned: <span id="plannedCount" class="font-bold text-indigo-600">0</span>/14</div>
-                <div class="h-3 w-px bg-slate-300"></div>
-                <div>Unscheduled Ideas: <span id="poolCount" class="font-bold text-slate-700">0</span></div>
-            </div>
-
-            <button id="addCardBtn" class="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-medium px-3.5 py-2 rounded-lg transition-all shadow-sm shadow-indigo-200">
-                <i data-lucide="plus" class="w-4 h-4"></i> Add Meal Idea
+            <!-- Firebase Sync Indicator -->
+            <button id="syncStatusBtn" class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+                <span id="syncDot" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                <span id="syncText" class="text-slate-700">Connecting...</span>
+                <i data-lucide="settings" class="w-3.5 h-3.5 text-slate-400 ml-1"></i>
             </button>
-            <button id="resetBoardBtn" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium px-3 py-2 rounded-lg transition-colors border border-slate-200" title="Reset to Defaults">
-                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+
+            <button id="addCardBtn" class="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-sm font-medium px-3.5 py-2 rounded-lg transition-all shadow-sm shadow-rose-200">
+                <i data-lucide="plus" class="w-4 h-4"></i> Add Meal
             </button>
         </div>
     </header>
@@ -86,7 +86,7 @@
     <main class="flex-1 flex overflow-hidden p-4 gap-4">
         
         <!-- Sidebar / Meal Pool -->
-        <aside class="w-72 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col shrink-0 overflow-hidden">
+        <aside class="w-72 bg-white rounded-xl border border-slate-200 shadow-xs flex flex-col shrink-0 overflow-hidden">
             <div class="p-3.5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
                 <div class="flex items-center gap-2 font-semibold text-slate-700 text-sm">
                     <i data-lucide="lightbulb" class="w-4 h-4 text-amber-500"></i>
@@ -94,7 +94,7 @@
                 </div>
                 <span id="poolBadge" class="bg-slate-200 text-slate-700 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
             </div>
-            <p class="text-xs text-slate-500 px-3.5 pt-2">Drag meals from here to any day, or keep extra recipes handy!</p>
+            <p class="text-xs text-slate-500 px-3.5 pt-2">Drag meals from here onto any day, or keep extra recipes handy!</p>
 
             <!-- Unscheduled Drop Area -->
             <div id="pool" data-day="pool" class="drag-zone flex-1 p-3 overflow-y-auto space-y-3 min-h-[150px] transition-colors rounded-b-xl">
@@ -107,15 +107,15 @@
             
             <!-- Week Switcher & View Mode -->
             <div class="flex items-center justify-between mb-3 px-1">
-                <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-slate-200 shadow-sm text-sm font-medium">
-                    <button id="viewAllBtn" class="px-3 py-1 rounded-md bg-indigo-600 text-white shadow-xs font-semibold transition-all">All 14 Days</button>
+                <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-slate-200 shadow-xs text-sm font-medium">
+                    <button id="viewAllBtn" class="px-3 py-1 rounded-md bg-rose-600 text-white font-semibold transition-all shadow-xs">All 14 Days</button>
                     <button id="viewWeek1Btn" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all">Week 1</button>
                     <button id="viewWeek2Btn" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all">Week 2</button>
                 </div>
                 
                 <div class="text-xs font-medium text-slate-500 flex items-center gap-1.5">
-                    <i data-lucide="info" class="w-3.5 h-3.5 text-indigo-500"></i>
-                    Tip: Drag cards between days to rearrange your schedule
+                    <i data-lucide="info" class="w-3.5 h-3.5 text-rose-500"></i>
+                    Tip: Drag cards between days to rearrange your meal schedule
                 </div>
             </div>
 
@@ -144,13 +144,13 @@
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Meal Title</label>
                     <input type="text" id="modalMealTitle" required placeholder="e.g. Creamy Tuscan Chicken" 
-                           class="w-full px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm text-slate-800 outline-none">
+                           class="w-full px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 text-sm text-slate-800 outline-none">
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Meal Type</label>
-                        <select id="modalMealType" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm text-slate-800 outline-none">
+                        <select id="modalMealType" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 text-sm text-slate-800 outline-none">
                             <option value="Dinner">Dinner 🍽️</option>
                             <option value="Lunch">Lunch 🥗</option>
                             <option value="Breakfast">Breakfast 🥞</option>
@@ -161,7 +161,7 @@
                     <div>
                         <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Prep/Cook Time</label>
                         <input type="text" id="modalPrepTime" placeholder="e.g. 30 mins" 
-                               class="w-full px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm text-slate-800 outline-none">
+                               class="w-full px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 text-sm text-slate-800 outline-none">
                     </div>
                 </div>
 
@@ -173,9 +173,9 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Notes / Ingredients / Recipe Link</label>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Notes / Recipe Link / Key Ingredients</label>
                     <textarea id="modalNotes" rows="3" placeholder="Add recipe links, key ingredients needed, or instructions..." 
-                              class="w-full px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm text-slate-800 outline-none resize-none"></textarea>
+                              class="w-full px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 text-sm text-slate-800 outline-none resize-none"></textarea>
                 </div>
 
                 <div class="pt-2 flex justify-between items-center border-t border-slate-100">
@@ -185,15 +185,76 @@
 
                     <div class="flex gap-2">
                         <button type="button" id="cancelModalBtn" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50">Cancel</button>
-                        <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-sm transition-all">Save Meal</button>
+                        <button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-medium shadow-sm transition-all">Save Meal</button>
                     </div>
                 </div>
             </form>
         </div>
     </div>
 
-    <script>
-        // Default Preset Tags with colors
+    <div id="firebaseModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+            <div class="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="cloud-lightning" class="w-5 h-5 text-amber-500"></i>
+                    <h3 class="text-lg font-bold text-slate-800">Collaborative Sync Settings</h3>
+                </div>
+                <button id="closeFirebaseModalBtn" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <p class="text-xs text-slate-600 leading-relaxed">
+                    To enable live collaborative editing with your fiancé across all devices, paste your <strong>Firebase Config JavaScript Object</strong> below.
+                </p>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Firebase Config Snippet</label>
+                    <textarea id="firebaseConfigInput" rows="6" placeholder='const firebaseConfig = {
+  apiKey: "...",
+  authDomain: "...",
+  projectId: "...",
+  storageBucket: "...",
+  messagingSenderId: "...",
+  appId: "..."
+};' class="w-full font-mono text-xs p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none bg-slate-50 text-slate-800"></textarea>
+                </div>
+
+                <div class="p-3 bg-rose-50 rounded-lg text-xs text-rose-800 border border-rose-200">
+                    <strong>Note:</strong> Both you and your fiancé should paste the same Firebase Configuration into this setting on your respective phones/laptops to connect to the exact same board.
+                </div>
+
+                <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                    <button id="migrateLocalBtn" class="text-xs text-indigo-600 font-semibold hover:underline flex items-center gap-1">
+                        <i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload Offline Data to Cloud
+                    </button>
+                    
+                    <div class="flex gap-2">
+                        <button id="clearFirebaseConfigBtn" class="px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-50">Disconnect / Reset</button>
+                        <button id="saveFirebaseConfigBtn" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-sm">Save & Connect</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import Firebase JS SDKs
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global State & Variables
+        let firebaseApp = null;
+        let db = null;
+        let auth = null;
+        let unsubscribeFirestore = null;
+        let isCloudConnected = false;
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-meal-planner';
+        
+        // Available meal tag labels
         const AVAILABLE_TAGS = [
             { name: "Quick & Easy", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
             { name: "Vegetarian", color: "bg-green-100 text-green-800 border-green-300" },
@@ -203,7 +264,7 @@
             { name: "Batch Cook", color: "bg-purple-100 text-purple-800 border-purple-300" }
         ];
 
-        // Sample initial meals for first load
+        // Sample initial meals for offline mode
         const INITIAL_MEALS = [
             { id: "m1", title: "Creamy Garlic Parmesan Pasta", type: "Dinner", prepTime: "25 mins", tags: ["Quick & Easy", "Vegetarian"], notes: "Serve with warm garlic bread and green salad.", day: "day-1" },
             { id: "m2", title: "Crispy Chicken Stir-Fry", type: "Dinner", prepTime: "30 mins", tags: ["Healthy"], notes: "Use snap peas, bell peppers, and soy ginger glaze.", day: "day-2" },
@@ -216,43 +277,145 @@
         ];
 
         const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-        // Application State
         let meals = [];
         let draggedCardId = null;
 
-        // DOM Element References
+        // DOM elements
         const daysBoard = document.getElementById("daysBoard");
         const pool = document.getElementById("pool");
         const cardModal = document.getElementById("cardModal");
         const cardForm = document.getElementById("cardForm");
         const tagsSelector = document.getElementById("tagsSelector");
+        const firebaseModal = document.getElementById("firebaseModal");
+        const firebaseConfigInput = document.getElementById("firebaseConfigInput");
 
-        function initApp() {
-            loadMeals();
-            renderBoard();
-            renderPool();
-            setupEventListeners();
-            updateStats();
-            lucide.createIcons();
-        }
+        async function initFirebase() {
+            updateSyncBadge("connecting");
 
-        function loadMeals() {
-            const saved = localStorage.getItem("couple_meal_planner_data");
-            if (saved) {
-                try {
-                    meals = JSON.parse(saved);
-                } catch (e) {
-                    meals = [...INITIAL_MEALS];
+            let cfg = null;
+            
+            // Check environment global or saved local config
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                try { cfg = JSON.parse(__firebase_config); } catch (e) {}
+            }
+            if (!cfg) {
+                const savedCfgStr = localStorage.getItem("couple_meal_planner_firebase_cfg");
+                if (savedCfgStr) {
+                    try { cfg = JSON.parse(savedCfgStr); } catch (e) {}
                 }
-            } else {
-                meals = [...INITIAL_MEALS];
+            }
+
+            if (!cfg || !cfg.apiKey) {
+                // Fallback to offline mode
+                isCloudConnected = false;
+                updateSyncBadge("offline");
+                loadOfflineMeals();
+                return;
+            }
+
+            try {
+                firebaseApp = initializeApp(cfg);
+                db = getFirestore(firebaseApp);
+                auth = getAuth(firebaseApp);
+
+                // Authenticate
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                // Setup Firestore Live Realtime Listener
+                const mealsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'meals');
+
+                if (unsubscribeFirestore) unsubscribeFirestore();
+
+                unsubscribeFirestore = onSnapshot(mealsColRef, (snapshot) => {
+                    meals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    isCloudConnected = true;
+                    updateSyncBadge("online");
+                    renderBoard();
+                    renderPool();
+                    lucide.createIcons();
+                }, (error) => {
+                    console.error("Firestore sync error:", error);
+                    isCloudConnected = false;
+                    updateSyncBadge("offline");
+                    loadOfflineMeals();
+                });
+
+            } catch (err) {
+                console.error("Failed to initialize Firebase:", err);
+                isCloudConnected = false;
+                updateSyncBadge("offline");
+                loadOfflineMeals();
             }
         }
 
-        function saveMeals() {
-            localStorage.setItem("couple_meal_planner_data", JSON.stringify(meals));
-            updateStats();
+        function loadOfflineMeals() {
+            const saved = localStorage.getItem("couple_meal_planner_data");
+            if (saved) {
+                try { meals = JSON.parse(saved); } catch (e) { meals = [...INITIAL_MEALS]; }
+            } else {
+                meals = [...INITIAL_MEALS];
+            }
+            renderBoard();
+            renderPool();
+            lucide.createIcons();
+        }
+
+        async function saveMealItem(meal) {
+            if (isCloudConnected && db) {
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'meals', meal.id);
+                    await setDoc(docRef, meal);
+                } catch (e) {
+                    console.error("Cloud save failed:", e);
+                }
+            } else {
+                // Offline LocalStorage save
+                const idx = meals.findIndex(m => m.id === meal.id);
+                if (idx >= 0) meals[idx] = meal;
+                else meals.push(meal);
+
+                localStorage.setItem("couple_meal_planner_data", JSON.stringify(meals));
+                renderBoard();
+                renderPool();
+                lucide.createIcons();
+            }
+        }
+
+        async function deleteMealItem(mealId) {
+            if (isCloudConnected && db) {
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'meals', mealId);
+                    await deleteDoc(docRef);
+                } catch (e) {
+                    console.error("Cloud delete failed:", e);
+                }
+            } else {
+                meals = meals.filter(m => m.id !== mealId);
+                localStorage.setItem("couple_meal_planner_data", JSON.stringify(meals));
+                renderBoard();
+                renderPool();
+                lucide.createIcons();
+            }
+        }
+
+        function updateSyncBadge(status) {
+            const dot = document.getElementById("syncDot");
+            const text = document.getElementById("syncText");
+
+            if (status === "online") {
+                dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+                text.innerText = "Synced with Cloud";
+            } else if (status === "connecting") {
+                dot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+                text.innerText = "Connecting...";
+            } else {
+                dot.className = "w-2.5 h-2.5 rounded-full bg-slate-400";
+                text.innerText = "Offline Mode";
+            }
         }
 
         function renderBoard() {
@@ -264,16 +427,16 @@
                 const dayId = `day-${i}`;
 
                 const column = document.createElement("div");
-                column.className = `trello-column flex-1 flex flex-col bg-white rounded-xl border border-slate-200/80 shadow-xs day-column week-${weekNum}`;
+                column.className = `trello-column flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-xs day-column week-${weekNum}`;
                 column.dataset.week = weekNum;
 
                 column.innerHTML = `
                     <div class="p-3 border-b border-slate-100 bg-slate-50/60 rounded-t-xl flex items-center justify-between">
                         <div>
-                            <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 block">Day ${i} • ${dayName}</span>
+                            <span class="text-xs font-bold uppercase tracking-wider text-rose-600 block">Day ${i} • ${dayName}</span>
                             <span class="text-[11px] text-slate-400 font-medium">Week ${weekNum}</span>
                         </div>
-                        <button onclick="openModalForNew('${dayId}')" class="text-slate-400 hover:text-indigo-600 p-1 rounded-md transition-colors" title="Add meal to Day ${i}">
+                        <button class="add-to-day-btn text-slate-400 hover:text-rose-600 p-1 rounded-md transition-colors" data-day="${dayId}" title="Add meal to Day ${i}">
                             <i data-lucide="plus" class="w-4 h-4"></i>
                         </button>
                     </div>
@@ -284,7 +447,6 @@
 
                 daysBoard.appendChild(column);
 
-                // Render meals assigned to this day
                 const dayContainer = column.querySelector(`#${dayId}`);
                 const dayMeals = meals.filter(m => m.day === dayId);
                 
@@ -294,6 +456,11 @@
 
                 setupDragZoneEvents(dayContainer);
             }
+
+            // Attach event listeners for add buttons
+            document.querySelectorAll(".add-to-day-btn").forEach(btn => {
+                btn.onclick = () => openModalForNew(btn.dataset.day);
+            });
         }
 
         function renderPool() {
@@ -306,16 +473,14 @@
 
             setupDragZoneEvents(pool);
             document.getElementById("poolBadge").innerText = poolMeals.length;
-            document.getElementById("poolCount").innerText = poolMeals.length;
         }
 
         function createMealCardElement(meal) {
             const card = document.createElement("div");
             card.id = `card-${meal.id}`;
-            card.className = "bg-white border border-slate-200 hover:border-indigo-300 rounded-xl p-3 shadow-xs hover:shadow-md transition-all cursor-grab active:cursor-grabbing group relative select-none";
+            card.className = "bg-white border border-slate-200 hover:border-rose-300 rounded-xl p-3 shadow-xs hover:shadow-md transition-all cursor-grab active:cursor-grabbing group relative select-none";
             card.draggable = true;
 
-            // Render Tags HTML
             const tagsHtml = (meal.tags || []).map(tagName => {
                 const tagObj = AVAILABLE_TAGS.find(t => t.name === tagName) || { name: tagName, color: "bg-slate-100 text-slate-700" };
                 return `<span class="text-[10px] font-semibold px-2 py-0.5 rounded-md border ${tagObj.color}">${tagObj.name}</span>`;
@@ -323,14 +488,13 @@
 
             card.innerHTML = `
                 <div class="flex items-start justify-between gap-2 mb-1.5">
-                    <h4 class="font-semibold text-slate-800 text-sm leading-snug hover:text-indigo-600 transition-colors cursor-pointer" onclick="openModalForEdit('${meal.id}')">${escapeHtml(meal.title)}</h4>
+                    <h4 class="card-title font-semibold text-slate-800 text-sm leading-snug hover:text-rose-600 transition-colors cursor-pointer">${escapeHtml(meal.title)}</h4>
                     
-                    <!-- Quick Actions Menu -->
                     <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onclick="duplicateMeal('${meal.id}')" title="Duplicate Meal" class="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded">
+                        <button class="dup-btn p-1 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded" title="Duplicate Meal">
                             <i data-lucide="copy" class="w-3.5 h-3.5"></i>
                         </button>
-                        <button onclick="openModalForEdit('${meal.id}')" title="Edit Meal" class="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded">
+                        <button class="edit-btn p-1 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded" title="Edit Meal">
                             <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                         </button>
                     </div>
@@ -344,11 +508,15 @@
                     <span class="flex items-center gap-1 font-medium text-slate-500">
                         <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i> ${meal.prepTime || 'N/A'}
                     </span>
-                    <span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-medium text-[10px]">
+                    <span class="bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded font-medium text-[10px]">
                         ${meal.type || 'Dinner'}
                     </span>
                 </div>
             `;
+
+            card.querySelector(".card-title").onclick = () => openModalForEdit(meal.id);
+            card.querySelector(".edit-btn").onclick = () => openModalForEdit(meal.id);
+            card.querySelector(".dup-btn").onclick = () => duplicateMeal(meal.id);
 
             card.addEventListener("dragstart", (e) => {
                 draggedCardId = meal.id;
@@ -379,7 +547,7 @@
                 }
             });
 
-            zone.addEventListener("drop", (e) => {
+            zone.addEventListener("drop", async (e) => {
                 e.preventDefault();
                 zone.classList.remove("drag-over");
                 
@@ -390,16 +558,13 @@
                     const meal = meals.find(m => m.id === cardId);
                     if (meal && meal.day !== targetDay) {
                         meal.day = targetDay;
-                        saveMeals();
-                        renderBoard();
-                        renderPool();
-                        lucide.createIcons();
+                        await saveMealItem(meal);
                     }
                 }
             });
         }
 
-        function duplicateMeal(id) {
+        async function duplicateMeal(id) {
             const original = meals.find(m => m.id === id);
             if (!original) return;
 
@@ -409,34 +574,32 @@
                 title: `${original.title} (Copy)`
             };
 
-            meals.push(copy);
-            saveMeals();
-            renderBoard();
-            renderPool();
-            lucide.createIcons();
+            await saveMealItem(copy);
         }
 
         function renderTagSelector(selectedTags = []) {
             tagsSelector.innerHTML = AVAILABLE_TAGS.map(t => {
                 const isChecked = selectedTags.includes(t.name);
                 return `
-                    <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs cursor-pointer select-none transition-all ${t.color} ${isChecked ? 'ring-2 ring-indigo-500 font-bold' : 'opacity-70'}">
-                        <input type="checkbox" name="tags" value="${t.name}" ${isChecked ? 'checked' : ''} class="hidden" onchange="toggleTagStyle(this)">
+                    <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs cursor-pointer select-none transition-all ${t.color} ${isChecked ? 'ring-2 ring-rose-500 font-bold' : 'opacity-70'}">
+                        <input type="checkbox" name="tags" value="${t.name}" ${isChecked ? 'checked' : ''} class="hidden">
                         <span>${t.name}</span>
                     </label>
                 `;
             }).join("");
-        }
 
-        function toggleTagStyle(checkbox) {
-            const label = checkbox.parentElement;
-            if (checkbox.checked) {
-                label.classList.add("ring-2", "ring-indigo-500", "font-bold");
-                label.classList.remove("opacity-70");
-            } else {
-                label.classList.remove("ring-2", "ring-indigo-500", "font-bold");
-                label.classList.add("opacity-70");
-            }
+            tagsSelector.querySelectorAll("input").forEach(cb => {
+                cb.onchange = () => {
+                    const lbl = cb.parentElement;
+                    if (cb.checked) {
+                        lbl.classList.add("ring-2", "ring-rose-500", "font-bold");
+                        lbl.classList.remove("opacity-70");
+                    } else {
+                        lbl.classList.remove("ring-2", "ring-rose-500", "font-bold");
+                        lbl.classList.add("opacity-70");
+                    }
+                };
+            });
         }
 
         function openModalForNew(defaultDay = "pool") {
@@ -474,12 +637,12 @@
         }
 
         function setupEventListeners() {
-            document.getElementById("addCardBtn").addEventListener("click", () => openModalForNew("pool"));
-            document.getElementById("closeModalBtn").addEventListener("click", closeModal);
-            document.getElementById("cancelModalBtn").addEventListener("click", closeModal);
+            document.getElementById("addCardBtn").onclick = () => openModalForNew("pool");
+            document.getElementById("closeModalBtn").onclick = closeModal;
+            document.getElementById("cancelModalBtn").onclick = closeModal;
 
             // Save Form Submission
-            cardForm.addEventListener("submit", (e) => {
+            cardForm.onsubmit = async (e) => {
                 e.preventDefault();
 
                 const id = document.getElementById("modalCardId").value;
@@ -488,11 +651,9 @@
                 const prepTime = document.getElementById("modalPrepTime").value.trim();
                 const notes = document.getElementById("modalNotes").value.trim();
 
-                const selectedTags = Array.from(document.querySelectorAll('input[name="tags"]:checked'))
-                                         .map(cb => cb.value);
+                const selectedTags = Array.from(document.querySelectorAll('input[name="tags"]:checked')).map(cb => cb.value);
 
                 if (id) {
-                    // Update existing
                     const meal = meals.find(m => m.id === id);
                     if (meal) {
                         meal.title = title;
@@ -500,9 +661,9 @@
                         meal.prepTime = prepTime;
                         meal.notes = notes;
                         meal.tags = selectedTags;
+                        await saveMealItem(meal);
                     }
                 } else {
-                    // Create new
                     const newMeal = {
                         id: "m_" + Date.now(),
                         title,
@@ -512,41 +673,83 @@
                         tags: selectedTags,
                         day: cardForm.dataset.targetDay || "pool"
                     };
-                    meals.push(newMeal);
+                    await saveMealItem(newMeal);
                 }
 
-                saveMeals();
-                renderBoard();
-                renderPool();
-                lucide.createIcons();
                 closeModal();
-            });
+            };
 
             // Delete Card
-            document.getElementById("deleteCardBtn").addEventListener("click", () => {
+            document.getElementById("deleteCardBtn").onclick = async () => {
                 const id = document.getElementById("modalCardId").value;
                 if (id) {
-                    meals = meals.filter(m => m.id !== id);
-                    saveMeals();
-                    renderBoard();
-                    renderPool();
-                    lucide.createIcons();
+                    await deleteMealItem(id);
                     closeModal();
                 }
-            });
+            };
 
-            // Reset Board Option
-            document.getElementById("resetBoardBtn").addEventListener("click", () => {
-                if (confirm("Reset meal planner back to default sample meals?")) {
-                    meals = [...INITIAL_MEALS];
-                    saveMeals();
-                    renderBoard();
-                    renderPool();
-                    lucide.createIcons();
+            // Firebase Modal Config Setup
+            document.getElementById("syncStatusBtn").onclick = () => {
+                const savedCfgStr = localStorage.getItem("couple_meal_planner_firebase_cfg") || "";
+                firebaseConfigInput.value = savedCfgStr;
+                firebaseModal.classList.remove("hidden");
+            };
+
+            document.getElementById("closeFirebaseModalBtn").onclick = () => firebaseModal.classList.add("hidden");
+
+            document.getElementById("saveFirebaseConfigBtn").onclick = () => {
+                const rawInput = firebaseConfigInput.value.trim();
+                if (!rawInput) {
+                    alert("Please enter a valid Firebase Config.");
+                    return;
                 }
-            });
 
-            // View Filtering (All 14 Days vs Week 1 vs Week 2)
+                try {
+                    // Normalize JSON or object string
+                    let jsonStr = rawInput;
+                    if (rawInput.includes("const firebaseConfig =")) {
+                        jsonStr = rawInput.replace(/const firebaseConfig =/g, "").replace(/;/g, "").trim();
+                    }
+                    // Fix unquoted JSON keys
+                    jsonStr = jsonStr.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
+                    
+                    const parsed = JSON.parse(jsonStr);
+                    localStorage.setItem("couple_meal_planner_firebase_cfg", JSON.stringify(parsed));
+                    firebaseModal.classList.add("hidden");
+                    initFirebase();
+                } catch (err) {
+                    alert("Could not parse Firebase Config. Please check the JSON format.");
+                }
+            };
+
+            document.getElementById("clearFirebaseConfigBtn").onclick = () => {
+                localStorage.removeItem("couple_meal_planner_firebase_cfg");
+                firebaseModal.classList.add("hidden");
+                initFirebase();
+            };
+
+            document.getElementById("migrateLocalBtn").onclick = async () => {
+                if (!isCloudConnected || !db) {
+                    alert("Please connect to Firebase first before migrating offline data.");
+                    return;
+                }
+                const saved = localStorage.getItem("couple_meal_planner_data");
+                if (saved) {
+                    try {
+                        const localMeals = JSON.parse(saved);
+                        for (const item of localMeals) {
+                            await saveMealItem(item);
+                        }
+                        alert("Successfully uploaded local meals to Firebase!");
+                    } catch (e) {
+                        alert("Migration error: " + e.message);
+                    }
+                } else {
+                    alert("No offline local meals found to upload.");
+                }
+            };
+
+            // View Filtering buttons
             const viewAllBtn = document.getElementById("viewAllBtn");
             const viewWeek1Btn = document.getElementById("viewWeek1Btn");
             const viewWeek2Btn = document.getElementById("viewWeek2Btn");
@@ -555,42 +758,39 @@
                 [viewAllBtn, viewWeek1Btn, viewWeek2Btn].forEach(btn => {
                     btn.className = "px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all font-medium";
                 });
-                activeBtn.className = "px-3 py-1 rounded-md bg-indigo-600 text-white shadow-xs font-semibold transition-all";
+                activeBtn.className = "px-3 py-1 rounded-md bg-rose-600 text-white font-semibold transition-all shadow-xs";
             };
 
-            viewAllBtn.addEventListener("click", () => {
+            viewAllBtn.onclick = () => {
                 document.querySelectorAll(".day-column").forEach(el => el.classList.remove("hidden"));
                 updateActiveViewBtn(viewAllBtn);
-            });
+            };
 
-            viewWeek1Btn.addEventListener("click", () => {
+            viewWeek1Btn.onclick = () => {
                 document.querySelectorAll(".day-column").forEach(el => {
                     if (el.dataset.week === "1") el.classList.remove("hidden");
                     else el.classList.add("hidden");
                 });
                 updateActiveViewBtn(viewWeek1Btn);
-            });
+            };
 
-            viewWeek2Btn.addEventListener("click", () => {
+            viewWeek2Btn.onclick = () => {
                 document.querySelectorAll(".day-column").forEach(el => {
                     if (el.dataset.week === "2") el.classList.remove("hidden");
                     else el.classList.add("hidden");
                 });
                 updateActiveViewBtn(viewWeek2Btn);
-            });
-        }
-
-        function updateStats() {
-            const planned = meals.filter(m => m.day !== "pool").length;
-            document.getElementById("plannedCount").innerText = planned;
+            };
         }
 
         function escapeHtml(str) {
             return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : '';
         }
 
-        // Initialize App on DOM ready
-        window.addEventListener("DOMContentLoaded", initApp);
+        window.addEventListener("DOMContentLoaded", () => {
+            setupEventListeners();
+            initFirebase();
+        });
     </script>
 </body>
 </html>
