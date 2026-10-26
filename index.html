@@ -14,8 +14,6 @@
         body { font-family: 'Inter', sans-serif; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .meal-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
-        .meal-card:active { cursor: grabbing; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
@@ -56,7 +54,7 @@
     </header>
 
     <!-- Main Content Layout -->
-    <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 grid grid-cols-1 md:grid-cols-4 gap-6 items-start relative">
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 md:grid-cols-4 gap-6 items-start relative">
 
         <!-- Sidebar: Meal Ideas & Sandbox (Desktop sticky, Mobile slide-over drawer) -->
         <aside id="sandbox-sidebar" class="fixed inset-y-0 left-0 z-40 w-80 bg-white border-r border-slate-200 shadow-xl p-4 flex flex-col transform -translate-x-full transition-transform duration-300 md:translate-x-0 md:static md:z-0 md:w-auto md:shadow-none md:border md:rounded-2xl md:col-span-1 h-full md:max-h-[calc(100vh-7rem)] md:sticky md:top-20">
@@ -72,7 +70,7 @@
                     </button>
                 </div>
             </div>
-            <p class="text-xs text-slate-500 mt-2">Drag meals to any day on the calendar, or tap 'Move' on mobile.</p>
+            <p class="text-xs text-slate-500 mt-2">Drag meals to any day on the calendar, or use the move button on mobile.</p>
 
             <!-- Sandbox Dropzone -->
             <div id="sandbox-dropzone" 
@@ -227,14 +225,13 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         let db = null;
         let auth = null;
         let unsub = null;
 
-        // Default local sample dataset if cloud is not active
         let appState = {
             cards: {
                 "card-1": { id: "card-1", title: "Creamy Garlic Chicken Pasta", type: "Dinner", time: "30 mins", tag: "Couple's Favorite", notes: "Use heavy cream and fresh parmesan", location: "day-1" },
@@ -254,14 +251,12 @@
         ];
 
         window.onload = function() {
-            // Check local storage for custom firebase config
             const savedConfig = localStorage.getItem("meal_planner_fb_config");
             if (savedConfig) {
                 try {
                     const cfg = JSON.parse(savedConfig);
                     initFirebase(cfg);
                 } catch(e) {
-                    console.error("Invalid stored config");
                     renderApp();
                 }
             } else {
@@ -282,7 +277,6 @@
                 const btn = document.getElementById("sync-status-btn");
                 btn.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 transition";
 
-                // Listen to Firestore document
                 const docRef = doc(db, "meal_plans", "shared_board");
                 unsub = onSnapshot(docRef, (docSnap) => {
                     if (docSnap.exists()) {
@@ -292,17 +286,13 @@
                             renderApp();
                         }
                     } else {
-                        // Initialize remote doc with default state
                         setDoc(docRef, appState);
                         renderApp();
                     }
                 }, (error) => {
-                    console.error("Firestore sync error:", error);
                     updateSyncStatusOffline();
                 });
-
             } catch (err) {
-                console.error("Failed to initialize Firebase:", err);
                 updateSyncStatusOffline();
                 renderApp();
             }
@@ -318,22 +308,18 @@
         function saveDataState() {
             if (db && auth && auth.currentUser) {
                 const docRef = doc(db, "meal_plans", "shared_board");
-                setDoc(docRef, appState).catch(err => console.error("Error saving to cloud:", err));
+                setDoc(docRef, appState).catch(err => console.error(err));
             } else {
-                // Fallback to local storage
                 localStorage.setItem("meal_planner_local_state", JSON.stringify(appState));
             }
             renderApp();
         }
 
-        // Render Application UI
         function renderApp() {
-            // Render Sandbox
             const sandboxContainer = document.getElementById("sandbox-dropzone");
             sandboxContainer.innerHTML = "";
             let sandboxCount = 0;
 
-            // Render Week 1 & 2 Grids
             const w1Grid = document.getElementById("week-1-grid");
             const w2Grid = document.getElementById("week-2-grid");
             w1Grid.innerHTML = "";
@@ -361,7 +347,6 @@
                 else w2Grid.appendChild(col);
             }
 
-            // Populate cards
             Object.values(appState.cards).forEach(card => {
                 const cardEl = createCardElement(card);
                 if (card.location === "sandbox") {
@@ -372,7 +357,6 @@
                     if (targetZone) {
                         targetZone.appendChild(cardEl);
                     } else {
-                        // Fallback if day key got lost
                         sandboxContainer.appendChild(cardEl);
                         sandboxCount++;
                     }
@@ -384,7 +368,7 @@
 
         function createCardElement(card) {
             const div = document.createElement("div");
-            div.className = "meal-card bg-white border border-slate-200/90 rounded-xl p-3 shadow-sm hover:shadow-md transition cursor-grab relative group";
+            div.className = "bg-white border border-slate-200/90 rounded-xl p-3 shadow-sm hover:shadow-md transition cursor-grab relative group";
             div.draggable = true;
             div.id = card.id;
 
@@ -428,7 +412,6 @@
             return div;
         }
 
-        // Drag and Drop handlers
         window.allowDrop = function(ev) {
             ev.preventDefault();
             ev.currentTarget.classList.add("bg-emerald-50/50");
@@ -458,7 +441,6 @@
             }
         };
 
-        // Card Actions
         window.deleteCard = function(id) {
             if (confirm("Are you sure you want to delete this meal card?")) {
                 delete appState.cards[id];
@@ -479,7 +461,6 @@
             saveDataState();
         };
 
-        // Modal Controls
         let activeTargetLocation = "sandbox";
 
         window.openAddCardModal = function() {
@@ -537,14 +518,12 @@
             }
 
             if (id && appState.cards[id]) {
-                // Edit existing
                 appState.cards[id].title = title;
                 appState.cards[id].type = type;
                 appState.cards[id].time = time;
                 appState.cards[id].tag = tag;
                 appState.cards[id].notes = notes;
             } else {
-                // Create new
                 const newId = "card-" + Date.now();
                 appState.cards[newId] = {
                     id: newId,
@@ -561,7 +540,6 @@
             saveDataState();
         };
 
-        // Mobile Move Modal
         window.openMoveModal = function(cardId) {
             document.getElementById("moving-card-id").value = cardId;
             const listEl = document.getElementById("move-options-list");
@@ -590,7 +568,6 @@
             closeMoveModal();
         };
 
-        // Settings Modal
         window.openSettingsModal = function() {
             const saved = localStorage.getItem("meal_planner_fb_config");
             if (saved) {
@@ -609,7 +586,6 @@
                 alert("Please enter a valid Firebase config object.");
                 return;
             }
-            // Clean up if user pasted 'const firebaseConfig = { ... }'
             if (val.includes("const firebaseConfig")) {
                 val = val.substring(val.indexOf("{"), val.lastIndexOf("}") + 1);
             }
@@ -619,12 +595,12 @@
                 closeSettingsModal();
                 location.reload();
             } catch (e) {
-                alert("Invalid JSON format. Please check your config snippet.");
+                alert("Invalid JSON format.");
             }
         };
 
         window.disconnectFirebase = function() {
-            if (confirm("Disconnect from Firebase and switch back to local storage?")) {
+            if (confirm("Disconnect from Firebase?")) {
                 localStorage.removeItem("meal_planner_fb_config");
                 if (unsub) unsub();
                 db = null;
@@ -635,7 +611,6 @@
             }
         };
 
-        // Mobile Sandbox Drawer Toggle
         window.toggleMobileSandbox = function() {
             const sidebar = document.getElementById("sandbox-sidebar");
             const backdrop = document.getElementById("sidebar-backdrop");
