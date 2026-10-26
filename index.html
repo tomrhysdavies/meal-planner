@@ -52,7 +52,7 @@
 </head>
 <body class="h-screen flex flex-col overflow-hidden bg-slate-100 text-slate-800">
 
-    <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between shadow-xs z-10 shrink-0">
+    <header class="bg-white border-b border-slate-200 px-6 py-3.5 flex flex-wrap items-center justify-between shadow-xs z-10 shrink-0">
         <div class="flex items-center gap-3">
             <div class="bg-rose-500 text-white p-2 rounded-xl shadow-md shadow-rose-200">
                 <i data-lucide="utensils" class="w-6 h-6"></i>
@@ -126,7 +126,7 @@
                     <button id="viewWeek2Btn" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all">Week 2</button>
                 </div>
                 
-                <div class="text-xs font-medium text-slate-500 hidden sm:flex items-center gap-1.5">
+                <div class="text-xs font-medium text-slate-500 flex items-center gap-1.5">
                     <i data-lucide="info" class="w-3.5 h-3.5 text-rose-500"></i>
                     Tip: Drag cards between days to rearrange your meal schedule
                 </div>
@@ -255,7 +255,7 @@
     <script type="module">
         // Import Firebase JS SDKs
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global State & Variables
@@ -317,34 +317,24 @@
         if (closeMobileSandbox) closeMobileSandbox.onclick = toggleMobileSidebar;
         if (sidebarBackdrop) sidebarBackdrop.onclick = toggleMobileSidebar;
 
-        function parseConfigString(str) {
-            if (!str) return null;
-            let clean = str.trim();
-            if (clean.includes("const firebaseConfig")) {
-                clean = clean.substring(clean.indexOf("{"), clean.lastIndexOf("}") + 1);
-            }
-            try {
-                return JSON.parse(clean);
-            } catch (e) {
-                return null;
-            }
-        }
-
         async function initFirebase() {
             updateSyncBadge("connecting");
 
             let cfg = null;
+            
+            // Check environment global or saved local config
             if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                cfg = parseConfigString(__firebase_config);
+                try { cfg = JSON.parse(__firebase_config); } catch (e) {}
             }
             if (!cfg) {
                 const savedCfgStr = localStorage.getItem("couple_meal_planner_firebase_cfg");
                 if (savedCfgStr) {
-                    cfg = parseConfigString(savedCfgStr);
+                    try { cfg = JSON.parse(savedCfgStr); } catch (e) {}
                 }
             }
 
             if (!cfg || !cfg.apiKey) {
+                // Fallback to offline mode
                 isCloudConnected = false;
                 updateSyncBadge("offline");
                 loadOfflineMeals();
@@ -356,12 +346,14 @@
                 db = getFirestore(firebaseApp);
                 auth = getAuth(firebaseApp);
 
+                // Authenticate
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
                     await signInAnonymously(auth);
                 }
 
+                // Setup Firestore Live Realtime Listener
                 const mealsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'meals');
 
                 if (unsubscribeFirestore) unsubscribeFirestore();
@@ -372,7 +364,7 @@
                     updateSyncBadge("online");
                     renderBoard();
                     renderPool();
-                    if (window.lucide) lucide.createIcons();
+                    lucide.createIcons();
                 }, (error) => {
                     console.error("Firestore sync error:", error);
                     isCloudConnected = false;
@@ -397,7 +389,7 @@
             }
             renderBoard();
             renderPool();
-            if (window.lucide) lucide.createIcons();
+            lucide.createIcons();
         }
 
         async function saveMealItem(meal) {
@@ -409,6 +401,7 @@
                     console.error("Cloud save failed:", e);
                 }
             } else {
+                // Offline LocalStorage save
                 const idx = meals.findIndex(m => m.id === meal.id);
                 if (idx >= 0) meals[idx] = meal;
                 else meals.push(meal);
@@ -416,7 +409,7 @@
                 localStorage.setItem("couple_meal_planner_data", JSON.stringify(meals));
                 renderBoard();
                 renderPool();
-                if (window.lucide) lucide.createIcons();
+                lucide.createIcons();
             }
         }
 
@@ -433,7 +426,7 @@
                 localStorage.setItem("couple_meal_planner_data", JSON.stringify(meals));
                 renderBoard();
                 renderPool();
-                if (window.lucide) lucide.createIcons();
+                lucide.createIcons();
             }
         }
 
@@ -492,11 +485,10 @@
                 setupDragZoneEvents(dayContainer);
             }
 
+            // Attach event listeners for add buttons
             document.querySelectorAll(".add-to-day-btn").forEach(btn => {
                 btn.onclick = () => openModalForNew(btn.dataset.day);
             });
-
-            if (window.lucide) lucide.createIcons();
         }
 
         function renderPool() {
@@ -509,7 +501,6 @@
 
             setupDragZoneEvents(pool);
             document.getElementById("poolBadge").innerText = poolMeals.length;
-            if (window.lucide) lucide.createIcons();
         }
 
         function createMealCardElement(meal) {
@@ -527,7 +518,7 @@
                 <div class="flex items-start justify-between gap-2 mb-1.5">
                     <h4 class="card-title font-semibold text-slate-800 text-sm leading-snug hover:text-rose-600 transition-colors cursor-pointer">${escapeHtml(meal.title)}</h4>
                     
-                    <div class="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button class="dup-btn p-1 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded" title="Duplicate Meal">
                             <i data-lucide="copy" class="w-3.5 h-3.5"></i>
                         </button>
@@ -755,9 +746,8 @@
         const migrateLocalBtn = document.getElementById("migrateLocalBtn");
 
         syncStatusBtn.onclick = () => {
-            const savedCfg = localStorage.getItem("couple_meal_planner_firebase_cfg") || (typeof __firebase_config !== 'undefined' ? __firebase_config : '');
-            firebaseConfigInput.value = savedCfg;
             firebaseModal.classList.remove("hidden");
+            firebaseConfigInput.value = localStorage.getItem("couple_meal_planner_firebase_cfg") || (typeof __firebase_config !== 'undefined' ? __firebase_config : '');
         };
 
         closeFirebaseModalBtn.onclick = () => firebaseModal.classList.add("hidden");
@@ -773,15 +763,10 @@
         saveFirebaseConfigBtn.onclick = () => {
             const val = firebaseConfigInput.value.trim();
             if (val) {
-                const parsed = parseConfigString(val);
-                if (parsed) {
-                    localStorage.setItem("couple_meal_planner_firebase_cfg", JSON.stringify(parsed));
-                    firebaseModal.classList.add("hidden");
-                    alert("Saved! Reloading app...");
-                    location.reload();
-                } else {
-                    alert("Invalid JSON config format. Please check your snippet.");
-                }
+                localStorage.setItem("couple_meal_planner_firebase_cfg", val);
+                firebaseModal.classList.add("hidden");
+                alert("Saved! Reloading app...");
+                location.reload();
             }
         };
 
@@ -808,7 +793,7 @@
         // Initialize App on Load
         window.onload = () => {
             initFirebase();
-            if (window.lucide) lucide.createIcons();
+            lucide.createIcons();
         };
     </script>
 </body>
