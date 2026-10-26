@@ -52,7 +52,7 @@
 </head>
 <body class="h-screen flex flex-col overflow-hidden bg-slate-100 text-slate-800">
 
-    <header class="bg-white border-b border-slate-200 px-6 py-3.5 flex flex-wrap items-center justify-between shadow-xs z-10 shrink-0">
+    <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between shadow-xs z-10 shrink-0">
         <div class="flex items-center gap-3">
             <div class="bg-rose-500 text-white p-2 rounded-xl shadow-md shadow-rose-200">
                 <i data-lucide="utensils" class="w-6 h-6"></i>
@@ -70,6 +70,11 @@
 
         <!-- Connection Status & Header Controls -->
         <div class="flex items-center gap-3 mt-2 sm:mt-0">
+            <!-- Mobile Ideas Drawer Toggle -->
+            <button id="mobileIdeasToggle" class="md:hidden flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium px-3 py-2 rounded-lg transition-colors border border-slate-200">
+                <i data-lucide="lightbulb" class="w-3.5 h-3.5 text-amber-500"></i> Meal Ideas
+            </button>
+
             <!-- Firebase Sync Indicator -->
             <button id="syncStatusBtn" class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
                 <span id="syncDot" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
@@ -83,16 +88,24 @@
         </div>
     </header>
 
-    <main class="flex-1 flex overflow-hidden p-4 gap-4">
+    <main class="flex-1 flex overflow-hidden p-4 gap-4 relative">
         
-        <!-- Sidebar / Meal Pool -->
-        <aside class="w-72 bg-white rounded-xl border border-slate-200 shadow-xs flex flex-col shrink-0 overflow-hidden">
+        <!-- Mobile Backdrop -->
+        <div id="sidebarBackdrop" class="fixed inset-0 bg-slate-900/40 z-30 hidden md:hidden"></div>
+
+        <!-- Sidebar / Meal Pool (Collapsible Slide-over on mobile, sticky on desktop) -->
+        <aside id="sandboxSidebar" class="fixed inset-y-0 left-0 z-40 w-72 bg-white rounded-r-xl md:rounded-xl border border-slate-200 shadow-xl md:shadow-xs flex flex-col shrink-0 overflow-hidden transform -translate-x-full transition-transform duration-300 md:translate-x-0 md:static md:z-0">
             <div class="p-3.5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
                 <div class="flex items-center gap-2 font-semibold text-slate-700 text-sm">
                     <i data-lucide="lightbulb" class="w-4 h-4 text-amber-500"></i>
                     <span>Meal Ideas & Sandbox</span>
                 </div>
-                <span id="poolBadge" class="bg-slate-200 text-slate-700 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+                <div class="flex items-center gap-2">
+                    <span id="poolBadge" class="bg-slate-200 text-slate-700 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+                    <button id="closeMobileSandbox" class="md:hidden text-slate-400 hover:text-slate-600 p-1">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
             </div>
             <p class="text-xs text-slate-500 px-3.5 pt-2">Drag meals from here onto any day, or keep extra recipes handy!</p>
 
@@ -113,7 +126,7 @@
                     <button id="viewWeek2Btn" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all">Week 2</button>
                 </div>
                 
-                <div class="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+                <div class="text-xs font-medium text-slate-500 hidden sm:flex items-center gap-1.5">
                     <i data-lucide="info" class="w-3.5 h-3.5 text-rose-500"></i>
                     Tip: Drag cards between days to rearrange your meal schedule
                 </div>
@@ -289,12 +302,26 @@
         const firebaseModal = document.getElementById("firebaseModal");
         const firebaseConfigInput = document.getElementById("firebaseConfigInput");
 
+        // Mobile Sandbox Drawer Logic
+        const mobileIdeasToggle = document.getElementById("mobileIdeasToggle");
+        const closeMobileSandbox = document.getElementById("closeMobileSandbox");
+        const sidebarBackdrop = document.getElementById("sidebarBackdrop");
+        const sandboxSidebar = document.getElementById("sandboxSidebar");
+
+        function toggleMobileSidebar() {
+            sandboxSidebar.classList.toggle("-translate-x-full");
+            sidebarBackdrop.classList.toggle("hidden");
+        }
+
+        if (mobileIdeasToggle) mobileIdeasToggle.onclick = toggleMobileSidebar;
+        if (closeMobileSandbox) closeMobileSandbox.onclick = toggleMobileSidebar;
+        if (sidebarBackdrop) sidebarBackdrop.onclick = toggleMobileSidebar;
+
         async function initFirebase() {
             updateSyncBadge("connecting");
 
             let cfg = null;
             
-            // Check environment global or saved local config
             if (typeof __firebase_config !== 'undefined' && __firebase_config) {
                 try { cfg = JSON.parse(__firebase_config); } catch (e) {}
             }
@@ -306,7 +333,6 @@
             }
 
             if (!cfg || !cfg.apiKey) {
-                // Fallback to offline mode
                 isCloudConnected = false;
                 updateSyncBadge("offline");
                 loadOfflineMeals();
@@ -318,14 +344,12 @@
                 db = getFirestore(firebaseApp);
                 auth = getAuth(firebaseApp);
 
-                // Authenticate
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
                     await signInAnonymously(auth);
                 }
 
-                // Setup Firestore Live Realtime Listener
                 const mealsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'meals');
 
                 if (unsubscribeFirestore) unsubscribeFirestore();
@@ -373,7 +397,6 @@
                     console.error("Cloud save failed:", e);
                 }
             } else {
-                // Offline LocalStorage save
                 const idx = meals.findIndex(m => m.id === meal.id);
                 if (idx >= 0) meals[idx] = meal;
                 else meals.push(meal);
@@ -457,7 +480,6 @@
                 setupDragZoneEvents(dayContainer);
             }
 
-            // Attach event listeners for add buttons
             document.querySelectorAll(".add-to-day-btn").forEach(btn => {
                 btn.onclick = () => openModalForNew(btn.dataset.day);
             });
@@ -490,7 +512,7 @@
                 <div class="flex items-start justify-between gap-2 mb-1.5">
                     <h4 class="card-title font-semibold text-slate-800 text-sm leading-snug hover:text-rose-600 transition-colors cursor-pointer">${escapeHtml(meal.title)}</h4>
                     
-                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div class="flex items-center gap-1 opacity-15 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                         <button class="dup-btn p-1 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded" title="Duplicate Meal">
                             <i data-lucide="copy" class="w-3.5 h-3.5"></i>
                         </button>
@@ -628,169 +650,152 @@
             document.getElementById("modalNotes").value = meal.notes || "";
             document.getElementById("deleteCardBtn").classList.remove("hidden");
 
+            cardForm.dataset.targetDay = meal.day;
             renderTagSelector(meal.tags || []);
             cardModal.classList.remove("hidden");
         }
 
-        function closeModal() {
+        // Modal Form Submission
+        cardForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById("modalCardId").value;
+            const title = document.getElementById("modalMealTitle").value.trim();
+            const type = document.getElementById("modalMealType").value;
+            const prepTime = document.getElementById("modalPrepTime").value.trim();
+            const notes = document.getElementById("modalNotes").value.trim();
+            
+            const selectedTags = Array.from(tagsSelector.querySelectorAll("input:checked")).map(cb => cb.value);
+
+            if (!title) return;
+
+            if (id) {
+                const meal = meals.find(m => m.id === id);
+                if (meal) {
+                    meal.title = title;
+                    meal.type = type;
+                    meal.prepTime = prepTime;
+                    meal.notes = notes;
+                    meal.tags = selectedTags;
+                    await saveMealItem(meal);
+                }
+            } else {
+                const newMeal = {
+                    id: "m_" + Date.now(),
+                    title,
+                    type,
+                    prepTime,
+                    tags: selectedTags,
+                    notes,
+                    day: cardForm.dataset.targetDay || "pool"
+                };
+                await saveMealItem(newMeal);
+            }
+
             cardModal.classList.add("hidden");
+        };
+
+        document.getElementById("closeModalBtn").onclick = () => cardModal.classList.add("hidden");
+        document.getElementById("cancelModalBtn").onclick = () => cardModal.classList.add("hidden");
+        document.getElementById("deleteCardBtn").onclick = async () => {
+            const id = document.getElementById("modalCardId").value;
+            if (id && confirm("Are you sure you want to delete this meal?")) {
+                await deleteMealItem(id);
+                cardModal.classList.add("hidden");
+            }
+        };
+
+        document.getElementById("addCardBtn").onclick = () => openModalForNew("pool");
+
+        // View Mode Filter Buttons
+        document.getElementById("viewAllBtn").onclick = (e) => {
+            setActiveViewBtn(e.target);
+            document.querySelectorAll(".trello-column").forEach(col => col.style.display = "flex");
+        };
+        document.getElementById("viewWeek1Btn").onclick = (e) => {
+            setActiveViewBtn(e.target);
+            document.querySelectorAll(".trello-column").forEach(col => {
+                col.style.display = col.dataset.week === "1" ? "flex" : "none";
+            });
+        };
+        document.getElementById("viewWeek2Btn").onclick = (e) => {
+            setActiveViewBtn(e.target);
+            document.querySelectorAll(".trello-column").forEach(col => {
+                col.style.display = col.dataset.week === "2" ? "flex" : "none";
+            });
+        };
+
+        function setActiveViewBtn(activeBtn) {
+            ["viewAllBtn", "viewWeek1Btn", "viewWeek2Btn"].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.className = "px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all";
+            });
+            activeBtn.className = "px-3 py-1 rounded-md bg-rose-600 text-white font-semibold transition-all shadow-xs";
         }
 
-        function setupEventListeners() {
-            document.getElementById("addCardBtn").onclick = () => openModalForNew("pool");
-            document.getElementById("closeModalBtn").onclick = closeModal;
-            document.getElementById("cancelModalBtn").onclick = closeModal;
+        // Firebase Settings Modal Management
+        const syncStatusBtn = document.getElementById("syncStatusBtn");
+        const closeFirebaseModalBtn = document.getElementById("closeFirebaseModalBtn");
+        const clearFirebaseConfigBtn = document.getElementById("clearFirebaseConfigBtn");
+        const saveFirebaseConfigBtn = document.getElementById("saveFirebaseConfigBtn");
+        const migrateLocalBtn = document.getElementById("migrateLocalBtn");
 
-            // Save Form Submission
-            cardForm.onsubmit = async (e) => {
-                e.preventDefault();
+        syncStatusBtn.onclick = () => {
+            const savedCfg = localStorage.getItem("couple_meal_planner_firebase_cfg") || (typeof __firebase_config !== 'undefined' ? __firebase_config : '');
+            firebaseConfigInput.value = savedCfg;
+            firebaseModal.classList.remove("hidden");
+        };
 
-                const id = document.getElementById("modalCardId").value;
-                const title = document.getElementById("modalMealTitle").value.trim();
-                const type = document.getElementById("modalMealType").value;
-                const prepTime = document.getElementById("modalPrepTime").value.trim();
-                const notes = document.getElementById("modalNotes").value.trim();
+        closeFirebaseModalBtn.onclick = () => firebaseModal.classList.add("hidden");
 
-                const selectedTags = Array.from(document.querySelectorAll('input[name="tags"]:checked')).map(cb => cb.value);
-
-                if (id) {
-                    const meal = meals.find(m => m.id === id);
-                    if (meal) {
-                        meal.title = title;
-                        meal.type = type;
-                        meal.prepTime = prepTime;
-                        meal.notes = notes;
-                        meal.tags = selectedTags;
-                        await saveMealItem(meal);
-                    }
-                } else {
-                    const newMeal = {
-                        id: "m_" + Date.now(),
-                        title,
-                        type,
-                        prepTime,
-                        notes,
-                        tags: selectedTags,
-                        day: cardForm.dataset.targetDay || "pool"
-                    };
-                    await saveMealItem(newMeal);
-                }
-
-                closeModal();
-            };
-
-            // Delete Card
-            document.getElementById("deleteCardBtn").onclick = async () => {
-                const id = document.getElementById("modalCardId").value;
-                if (id) {
-                    await deleteMealItem(id);
-                    closeModal();
-                }
-            };
-
-            // Firebase Modal Config Setup
-            document.getElementById("syncStatusBtn").onclick = () => {
-                const savedCfgStr = localStorage.getItem("couple_meal_planner_firebase_cfg") || "";
-                firebaseConfigInput.value = savedCfgStr;
-                firebaseModal.classList.remove("hidden");
-            };
-
-            document.getElementById("closeFirebaseModalBtn").onclick = () => firebaseModal.classList.add("hidden");
-
-            document.getElementById("saveFirebaseConfigBtn").onclick = () => {
-                const rawInput = firebaseConfigInput.value.trim();
-                if (!rawInput) {
-                    alert("Please enter a valid Firebase Config.");
-                    return;
-                }
-
-                try {
-                    // Normalize JSON or object string
-                    let jsonStr = rawInput;
-                    if (rawInput.includes("const firebaseConfig =")) {
-                        jsonStr = rawInput.replace(/const firebaseConfig =/g, "").replace(/;/g, "").trim();
-                    }
-                    // Fix unquoted JSON keys
-                    jsonStr = jsonStr.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
-                    
-                    const parsed = JSON.parse(jsonStr);
-                    localStorage.setItem("couple_meal_planner_firebase_cfg", JSON.stringify(parsed));
-                    firebaseModal.classList.add("hidden");
-                    initFirebase();
-                } catch (err) {
-                    alert("Could not parse Firebase Config. Please check the JSON format.");
-                }
-            };
-
-            document.getElementById("clearFirebaseConfigBtn").onclick = () => {
+        clearFirebaseConfigBtn.onclick = () => {
+            if (confirm("Disconnect and clear configuration?")) {
                 localStorage.removeItem("couple_meal_planner_firebase_cfg");
                 firebaseModal.classList.add("hidden");
-                initFirebase();
-            };
+                location.reload();
+            }
+        };
 
-            document.getElementById("migrateLocalBtn").onclick = async () => {
-                if (!isCloudConnected || !db) {
-                    alert("Please connect to Firebase first before migrating offline data.");
-                    return;
+        saveFirebaseConfigBtn.onclick = () => {
+            const val = firebaseConfigInput.value.trim();
+            if (val) {
+                try {
+                    // Quick parse test
+                    JSON.parse(val.startsWith('const') ? val.substring(val.indexOf('{')) : val);
+                    localStorage.setItem("couple_meal_planner_firebase_cfg", val);
+                    firebaseModal.classList.add("hidden");
+                    alert("Saved! Reloading app...");
+                    location.reload();
+                } catch (e) {
+                    alert("Invalid JSON config format. Please make sure it's valid JSON.");
                 }
-                const saved = localStorage.getItem("couple_meal_planner_data");
-                if (saved) {
-                    try {
-                        const localMeals = JSON.parse(saved);
-                        for (const item of localMeals) {
-                            await saveMealItem(item);
-                        }
-                        alert("Successfully uploaded local meals to Firebase!");
-                    } catch (e) {
-                        alert("Migration error: " + e.message);
-                    }
-                } else {
-                    alert("No offline local meals found to upload.");
+            }
+        };
+
+        migrateLocalBtn.onclick = async () => {
+            if (!isCloudConnected || !db) {
+                alert("Please connect to Firebase first before uploading offline data.");
+                return;
+            }
+            if (confirm("Upload all current offline meals to the shared cloud database?")) {
+                for (const meal of meals) {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'meals', meal.id);
+                    await setDoc(docRef, meal);
                 }
-            };
-
-            // View Filtering buttons
-            const viewAllBtn = document.getElementById("viewAllBtn");
-            const viewWeek1Btn = document.getElementById("viewWeek1Btn");
-            const viewWeek2Btn = document.getElementById("viewWeek2Btn");
-
-            const updateActiveViewBtn = (activeBtn) => {
-                [viewAllBtn, viewWeek1Btn, viewWeek2Btn].forEach(btn => {
-                    btn.className = "px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all font-medium";
-                });
-                activeBtn.className = "px-3 py-1 rounded-md bg-rose-600 text-white font-semibold transition-all shadow-xs";
-            };
-
-            viewAllBtn.onclick = () => {
-                document.querySelectorAll(".day-column").forEach(el => el.classList.remove("hidden"));
-                updateActiveViewBtn(viewAllBtn);
-            };
-
-            viewWeek1Btn.onclick = () => {
-                document.querySelectorAll(".day-column").forEach(el => {
-                    if (el.dataset.week === "1") el.classList.remove("hidden");
-                    else el.classList.add("hidden");
-                });
-                updateActiveViewBtn(viewWeek1Btn);
-            };
-
-            viewWeek2Btn.onclick = () => {
-                document.querySelectorAll(".day-column").forEach(el => {
-                    if (el.dataset.week === "2") el.classList.remove("hidden");
-                    else el.classList.add("hidden");
-                });
-                updateActiveViewBtn(viewWeek2Btn);
-            };
-        }
+                alert("Successfully uploaded all local meals to the cloud!");
+                firebaseModal.classList.add("hidden");
+            }
+        };
 
         function escapeHtml(str) {
-            return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : '';
+            if (!str) return '';
+            return str.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, """).replace(/'/g, "'");
         }
 
-        window.addEventListener("DOMContentLoaded", () => {
-            setupEventListeners();
+        // Initialize App on Load
+        window.onload = () => {
             initFirebase();
-        });
+            lucide.createIcons();
+        };
     </script>
 </body>
 </html>
